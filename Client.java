@@ -1,49 +1,77 @@
-import java.io.*; 
-import java.net.*; 
+import java.io.*;
+import java.net.*;
+import java.awt.event.*;
 
 public class Client {
+    private Gui gui;
+    private Socket clientSocket;
+    private DataOutputStream outToServer;
+    private BufferedReader inFromServer;
 
-    public Client() {
-        
+    public Client(String host, int port) {
+        try {
+            clientSocket = connect(host, port);
+            outToServer = new DataOutputStream(clientSocket.getOutputStream());
+            inFromServer = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+            gui = new Gui();
+
+            // Add a listener for the Send button
+            gui.addSendButtonListener(new ActionListener() {
+                public void actionPerformed(ActionEvent e) {
+                    try {
+                        String message = gui.getMessage();
+                        if (!message.isEmpty()) {
+                            outToServer.writeBytes(message + "\n");
+                            gui.clearMessage();
+                        }
+                    } catch (IOException ex) {
+                        ex.printStackTrace();
+                    }
+                }
+            });
+
+            // Start the server listener
+            new Thread(new ServerListener()).start();
+        } catch (Exception e) {
+            System.out.println("Error: " + e.getMessage());
+        }
     }
 
     public static void main(String argv[]) throws Exception {
-        String hostname = "localhost";
-        int portNum = 8080;
-        //Socket socket = connect(hostname, portNum);
-        //DataOutputStream outToServer = new DataOutputStream(socket.getOutputStream());
-        //BufferedReader inFromServer = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-        Gui gui = new Gui();
-
-        
-
-        
+        String host = "localhost";
+        int port = 8080;
+        new Client(host, port);
     }
 
     public static Socket connect(String host, int port) {
-        Socket clientSocket;
-        String hostname = host;
-        int portNum = port;
-
         try {
-            clientSocket = new Socket(hostname, portNum);
-            System.out.println("Connected to " + hostname + " on port " + portNum);
-            // Your code to communicate with the server goes here
-
+            Socket clientSocket = new Socket(host, port);
+            System.out.println("Connected to " + host + " on port " + port);
             return clientSocket;
         } catch (Exception e) {
             System.out.println("Error: " + e.getMessage());
-            clientSocket = null;
+            return null;
         }
-        return clientSocket;
-
     }
 
     //Define what to do with clients
-    static class ServerListener implements Runnable {
-
+    class ServerListener implements Runnable {
         public void run() {
-            
+            String message;
+            try {
+                while ((message = inFromServer.readLine()) != null) {
+                    gui.addMessage(message);
+                }
+            } catch (IOException e) {
+                System.out.println("Connection closed: " + e.getMessage());
+            } finally {
+                try {
+                    clientSocket.close();
+                    System.exit(0);
+                } catch (IOException e) {
+                    System.out.println("Error closing socket: " + e.getMessage());
+                }
+            }
         }
     }
 }
