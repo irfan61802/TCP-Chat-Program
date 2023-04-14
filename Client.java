@@ -58,10 +58,7 @@ public class Client {
     // Define what to do with clients
     class ServerListener implements Runnable {
         public void run() {
-            String hostname = "localhost";
-            int portNum = 8080;
-            Socket socket = connect(hostname, portNum);
-            if (socket != null) {
+            if (clientSocket != null) {
                 try {
                     // Loop to continuously read input from the server
                     while (true) {

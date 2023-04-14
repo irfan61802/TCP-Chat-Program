@@ -17,45 +17,53 @@ public class Server {
         // Create a thread pool with a fixed number of threads
         int maxThreads = 10;
         ExecutorService executorService = Executors.newFixedThreadPool(maxThreads);
-        executorService.submit(new ClientHandler());
-
+        while (true) {
+            try {
+                Socket clientSocket = welcomeSocket.accept();
+                System.out.println("Client connected: " + clientSocket.getInetAddress().getHostAddress());
+                executorService.submit(new ClientHandler(clientSocket));
+            } catch (IOException e) {
+                // Handle error when accepting client connections
+                e.printStackTrace();
+            }
+        }
     }
 
     //Define what to do with clients
     static class ClientHandler implements Runnable {
+        private Socket clientSocket;
+
+        public ClientHandler(Socket socket) {
+            this.clientSocket = socket;
+        }
 
         public void run() {
             while (true) {
                 try {
-                    Socket clientSocket = welcomeSocket.accept();
-                    System.out.println("Client connected: " + clientSocket.getInetAddress().getHostAddress());
                     BufferedReader inFromClient = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
                     DataOutputStream outToClient = new DataOutputStream(clientSocket.getOutputStream());
-                    
+    
                     String username = inFromClient.readLine();
                     System.out.println(username);
                     if (username != null && !username.isEmpty()) {
                         synchronized (connectedUsers) {
                             if (connectedUsers.containsKey(username)) {
                                 // Handle duplicate username, e.g., send an error message to the client
-                                String errorMsg = "Error: Username already taken";
+                                String errorMsg = "Error: Duplicate Username";
                                 outToClient.writeBytes(errorMsg + "\n");
-                            
                             } else {
                                 // Add the client to the map with username as key and socket as value
                                 connectedUsers.put(username, clientSocket);
-                                System.out.println("User has connected" + username);
+                                System.out.println("User has connected: " + username);
                                 outToClient.writeBytes("Successfully connected.");
-                                
                             }
                         }
                     }
-                    clientSocket.close();
+                    
                 } catch (IOException e) {
                     // Handle error when accepting client connections
                     e.printStackTrace();
                 }
-                break;
             }
         }
     }
