@@ -53,62 +53,35 @@ public class Client {
             System.out.println("Error: " + e.getMessage());
             return null;
         }
-
-        return clientSocket;
     }
 
-    //Define what to do with clients
-    static class ServerListener implements Runnable {
-        private Gui gui;
-        public ServerListener(Gui gui) {
-            this.gui = gui;
-        }
+    // Define what to do with clients
+    class ServerListener implements Runnable {
         public void run() {
-            
             String hostname = "localhost";
             int portNum = 8080;
             Socket socket = connect(hostname, portNum);
             if (socket != null) {
                 try {
-                    outToServer = new DataOutputStream(socket.getOutputStream());
-                    inFromServer = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                    // Your code to communicate with the server goes here
-                    JButton sendButton = gui.getSendButton();
-                    sendButton.addActionListener(new ActionListener() {
-                        @Override
-                        public void actionPerformed(ActionEvent e) {
-                            String username = gui.getMessage();
-                            try {
-                                outToServer.writeBytes(username + "\n");
-                            } catch (IOException ex) {
-                                ex.printStackTrace();
-                                // Handle the exception as needed, e.g. show an error message to the user
-                            }
-                            gui.clearMessage();
-                            System.out.println("Send button clicked!");
-                        }
-                    });
-                    // Prompt the user for input
-                    Scanner scanner = new Scanner(System.in);
-                    System.out.println("Enter a message to send to the server: ");
-                    String userInput = scanner.nextLine();
-                    outToServer.writeBytes(userInput + "\n");
                     // Loop to continuously read input from the server
-                    String message;
-                    try {
-                        while ((message = inFromServer.readLine()) != null) {
-                            gui.addMessage(message);
+                    while (true) {
+                        String input = inFromServer.readLine();
+                        if (input != null) {
+                            System.out.println("Received from server: " + input);
+                            gui.addMessage(input);
+                            // Process the received input as needed
                         }
+                    }
+                } catch (IOException e) {
+                    System.out.println("Connection closed: " + e.getMessage());
+                } finally {
+                    try {
+                        clientSocket.close();
+                        System.exit(0);
                     } catch (IOException e) {
-                        System.out.println("Connection closed: " + e.getMessage());
-                    } finally {
-                        try {
-                            clientSocket.close();
-                            System.exit(0);
-                        } catch (IOException e) {
-                            System.out.println("Error closing socket: " + e.getMessage());
-                        }       
-
+                        System.out.println("Error closing socket: " + e.getMessage());
+                    }
+                }
             }
         }
     }
