@@ -1,5 +1,6 @@
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.*;
 import java.util.ArrayList;
 
 public class Gui extends JFrame {
@@ -8,7 +9,7 @@ public class Gui extends JFrame {
     private JButton sendButton;
     private JList<String> memberList;
     private DefaultListModel<String> memberListModel;
-    
+
     public Gui() {
         super("Chat Application");
         setLayout(new BorderLayout());
@@ -38,7 +39,7 @@ public class Gui extends JFrame {
         splitPane.setResizeWeight(0.75);
 
         // calculate the pixel value for the divider location
-        
+
         int dividerLocation = (int)(550);
         splitPane.setDividerLocation(dividerLocation);
 
@@ -75,5 +76,8 @@ public class Gui extends JFrame {
         messageTextField.setText(""); // clear the message input field
     }
 
-    
+
+    public void addSendButtonListener(ActionListener listener) {
+        sendButton.addActionListener(listener);
+    }
 }
