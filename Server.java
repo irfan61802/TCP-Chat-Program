@@ -44,7 +44,7 @@ public class Server {
                             } else {
                                 // Add the client to the map with username as key and socket as value
                                 connectedUsers.put(username, clientSocket);
-                                System.out.println("User has connected");
+                                System.out.println("User has connected" + username);
                                 outToClient.writeBytes("Successfully connected.");
                                 
                             }

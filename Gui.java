@@ -71,5 +71,9 @@ public class Gui extends JFrame {
         return messageTextField.getText(); // get the message text from the input field
     }
 
+    public void clearMessage() {
+        messageTextField.setText(""); // clear the message input field
+    }
+
     
 }

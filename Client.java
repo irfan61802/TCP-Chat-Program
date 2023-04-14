@@ -53,6 +53,14 @@ public class Client {
                     sendButton.addActionListener(new ActionListener() {
                         @Override
                         public void actionPerformed(ActionEvent e) {
+                            String username = gui.getMessage();
+                            try {
+                                outToServer.writeBytes(username + "\n");
+                            } catch (IOException ex) {
+                                ex.printStackTrace();
+                                // Handle the exception as needed, e.g. show an error message to the user
+                            }
+                            gui.clearMessage();
                             System.out.println("Send button clicked!");
                         }
                     });
