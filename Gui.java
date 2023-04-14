@@ -64,6 +64,9 @@ public class Gui extends JFrame {
             memberListModel.addElement(member); // add each member to the list
         }
     }
+    public JButton getSendButton(){
+        return sendButton;
+    }
 
     public String getMessage() {
         return messageTextField.getText(); // get the message text from the input field
@@ -72,6 +75,7 @@ public class Gui extends JFrame {
     public void clearMessage() {
         messageTextField.setText(""); // clear the message input field
     }
+
 
     public void addSendButtonListener(ActionListener listener) {
         sendButton.addActionListener(listener);
