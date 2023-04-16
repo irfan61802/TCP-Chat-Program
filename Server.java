@@ -54,6 +54,18 @@ public class Server {
         });
         welcomeSocket2Thread.start();
         
+        // Start server on port 8050 in a separate thread
+        Thread queueProcessor = new Thread(() -> {
+            while(true){
+                synchronized(messageQueue){
+                    if(!messageQueue.isEmpty()){
+                        String message = messageQueue.remove(0);
+                        executorService.execute(new MessageBroadcaster(message));
+                    }
+                }
+            }
+        });
+        queueProcessor.start();
     }
 
     private static void printMessageQueue() {
@@ -90,10 +102,11 @@ public class Server {
                                 outToClient.writeBytes(errorMsg + "\n");
                             } else {
                                 // Add the client to the map with username as key and socket as value
-                                connectedUsers.put(clientSocket.getInetAddress().toString(), username);
+                                String sessionID = generateSessionId();
+                                connectedUsers.put(sessionID, username);
                                 ipAddr.add("localhost");
                                 System.out.println("User has connected: " + username);
-                                outToClient.writeBytes("Successfully connected. Session id:" + generateSessionId() + "\n");
+                                outToClient.writeBytes("Successfully connected. Session id:" + sessionID + "\n");
                             }
                         }
                     }
@@ -139,7 +152,6 @@ public class Server {
                         stop();
                     }
                 }
-                System.out.println("Received message.");
                 printMessageQueue();
                 clientSocket.close();
             } catch (IOException e) {
@@ -162,14 +174,15 @@ public class Server {
         }
         public void run(){
             //Add code to parse message: First 36 char is UUID and rest is message
-            System.out.println("MessageBroadcasterStarting");
+            String uuid = message.substring(0, 36);
+            String msg = message.substring(36, message.length());
             //Broadcast Message
             for (String value : ipAddr) {
                 // Do something with the value
                 try {
                     Socket clientSocket = new Socket(value, 8001);
                     DataOutputStream outToServer = new DataOutputStream(clientSocket.getOutputStream());
-                    outToServer.writeBytes("MessageBroadcaster" + "\n");
+                    outToServer.writeBytes("From " + connectedUsers.get(uuid) + ":" + msg + "\n");
                     clientSocket.close();
                 } catch (Exception e) {
                     e.printStackTrace();

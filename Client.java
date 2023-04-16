@@ -3,7 +3,7 @@ import java.net.*;
 import java.awt.event.*;
 
 public class Client {
-    private Gui gui;
+    private static Gui gui;
     private Socket clientSocket;
     private DataOutputStream outToServer;
     private BufferedReader inFromServer;
@@ -53,7 +53,7 @@ public class Client {
         String host = "localhost";
         int port = 8080;
         new Client(host, port);
-        //new Thread(new ServerSocketListener()).start();
+        new Thread(new ServerSocketListener()).start();
     }
 
     public static Socket connect(String host, int port) {
@@ -107,7 +107,7 @@ public class Client {
                     BufferedReader inFromClient = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                     String input;
                     while ((input = inFromClient.readLine()) != null) {
-                        System.out.println("Received from client: " + input);
+                        gui.addMessage(input);
                         // Process the received input as needed
                     }
                     //socket.close();
