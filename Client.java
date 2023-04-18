@@ -8,6 +8,7 @@ public class Client {
     private DataOutputStream outToServer;
     private BufferedReader inFromServer;
     private String sessionID;
+    public static int currMessage = 0;
 
     public Client(String host, int port) {
         try {
@@ -24,7 +25,7 @@ public class Client {
                         String message = gui.getMessage();
                         if (!message.isEmpty()) {
                             if(sessionID != null){
-                                clientSocket = connect(host, 8050);
+                                clientSocket = connect(host, 5001);
                                 outToServer = new DataOutputStream(clientSocket.getOutputStream());
                                 outToServer.writeBytes(sessionID + message + "\n");
                                 clientSocket.close();
@@ -51,9 +52,9 @@ public class Client {
 
     public static void main(String argv[]) throws Exception {
         String host = "localhost";
-        int port = 8080;
+        int port = 5000;
         new Client(host, port);
-        new Thread(new ServerSocketListener()).start();
+        new Thread(new serverPoll()).start();
     }
 
     public static Socket connect(String host, int port) {
@@ -95,25 +96,34 @@ public class Client {
         }
     }
 
-    // Define what to do with incoming connections on the server socket
-    static class ServerSocketListener implements Runnable {
+    static class serverPoll implements Runnable {
+        private Socket clientSocket;
+        private DataOutputStream outToServer;
+        private BufferedReader inFromServer;
+    
         public void run() {
             try {
-                ServerSocket serverSocket = new ServerSocket(8001);
-                System.out.println("Server socket listening on port 8001...");
                 while (true) {
-                    Socket socket = serverSocket.accept();
-                    System.out.println("Accepted connection from " + socket.getInetAddress().getHostAddress());
-                    BufferedReader inFromClient = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                    System.out.println("Polling starting");
+                    clientSocket = connect("localhost", 5002);
+                    outToServer = new DataOutputStream(clientSocket.getOutputStream());
+                    inFromServer = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+                    // Send Currmessage
+                    outToServer.writeBytes(Integer.toString(currMessage) + "\n");
+    
+                    // Read input from server
                     String input;
-                    while ((input = inFromClient.readLine()) != null) {
+                    while ((input = inFromServer.readLine()) != null) {
                         gui.addMessage(input);
-                        // Process the received input as needed
+                        currMessage += 1;
                     }
-                    //socket.close();
+    
+                    // Wait for 5 seconds if no input
+                    Thread.sleep(8000);
                 }
-            } catch (IOException e) {
-                System.out.println("Error in server socket listener: " + e.getMessage());
+    
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         }
     }

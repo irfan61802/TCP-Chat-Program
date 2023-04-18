@@ -13,6 +13,7 @@ public class Server {
     public static ServerSocket welcomeSocket;
     public static ServerSocket welcomeSocket2;
     private static ArrayList<String> messageQueue = new ArrayList<String>();
+    private static int currServerMessage = 0;
     public static void main(String argv[]) throws Exception {
 
         // Create a thread pool with a fixed number of threads
@@ -21,7 +22,7 @@ public class Server {
         
         Thread welcomeSocketThread = new Thread(() -> {
             try {
-                ServerSocket welcomeSocket = new ServerSocket(8080);
+                ServerSocket welcomeSocket = new ServerSocket(5000);
                 System.out.println(InetAddress.getLocalHost());
                 while (true) {
                     Socket clientSocket = welcomeSocket.accept();
@@ -36,11 +37,11 @@ public class Server {
         });
         welcomeSocketThread.start();
     
-        // Start server on port 8050 in a separate thread
+        // Listen for clients that are connecting to send message
         Thread welcomeSocket2Thread = new Thread(() -> {
             try {
-                ServerSocket welcomeSocket2 = new ServerSocket(8050);
-                System.out.println("Server listening on port 8050");
+                ServerSocket welcomeSocket2 = new ServerSocket(5001);
+                System.out.println("Server listening on port 5001");
                 while (true) {
                     Socket clientSocket2 = welcomeSocket2.accept();
                     System.out.println("Message Handler starting");
@@ -56,13 +57,16 @@ public class Server {
         
         // Start server on port 8050 in a separate thread
         Thread queueProcessor = new Thread(() -> {
-            while(true){
-                synchronized(messageQueue){
-                    if(!messageQueue.isEmpty()){
-                        String message = messageQueue.remove(0);
-                        executorService.execute(new MessageBroadcaster(message));
-                    }
+            try {
+                ServerSocket welcomeSocket3 = new ServerSocket(5002);
+                while (true) {
+                    Socket clientSocket3 = welcomeSocket3.accept();
+                    
+                    executorService.execute(new MessageBroadcaster(clientSocket3));
                 }
+            } catch (IOException e) {
+                // Handle error when accepting client connections on port 8050
+                e.printStackTrace();
             }
         });
         queueProcessor.start();
@@ -149,6 +153,7 @@ public class Server {
                     message = inFromClient.readLine();
                     synchronized (messageQueue) {
                         messageQueue.add(message);
+                        currServerMessage += 1;
                         stop();
                     }
                 }
@@ -167,27 +172,34 @@ public class Server {
 
     //While queue has messages, iterate through ipaddress list and send message.
     static class MessageBroadcaster implements Runnable {
-        String message;
+        private Socket clientSocket;
+        
 
-        public MessageBroadcaster(String message){
-            this.message = message;
+        public MessageBroadcaster(Socket clientSocket){
+            this.clientSocket = clientSocket;
         }
         public void run(){
-            //Add code to parse message: First 36 char is UUID and rest is message
-            String uuid = message.substring(0, 36);
-            String msg = message.substring(36, message.length());
-            //Broadcast Message
-            for (String value : ipAddr) {
-                // Do something with the value
-                try {
-                    Socket clientSocket = new Socket(value, 8001);
-                    DataOutputStream outToServer = new DataOutputStream(clientSocket.getOutputStream());
-                    outToServer.writeBytes("From " + connectedUsers.get(uuid) + ":" + msg + "\n");
-                    clientSocket.close();
-                } catch (Exception e) {
-                    e.printStackTrace();
+            try{
+                String message;
+                String uuid;
+                String msg;
+                BufferedReader inFromClient = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+                DataOutputStream outToClient = new DataOutputStream(clientSocket.getOutputStream());
+                //Client will send current message
+                int currMessage = Integer.parseInt(inFromClient.readLine());
+                //Add code to parse message: First 36 char is UUID and rest is message
+                for(int i = currMessage; i < messageQueue.size(); i++){
+                    message = messageQueue.get(i);
+                    uuid = message.substring(0, 36);
+                    msg = message.substring(36, message.length());
+                    outToClient.writeBytes("From " + connectedUsers.get(uuid) + ": " + msg + "\n");
                 }
+                clientSocket.close();
+            //Broadcast Message
+            } catch(IOException e){
+
             }
+            
         }
     }
 }
