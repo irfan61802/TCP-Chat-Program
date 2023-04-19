@@ -13,19 +13,22 @@ public class Gui extends JFrame {
     public Gui() {
         super("Chat Application");
         setLayout(new BorderLayout());
-
+    
         // create the chat text area
         chatTextArea = new JTextArea();
         chatTextArea.setEditable(false);
         JScrollPane chatScrollPane = new JScrollPane(chatTextArea);
         chatScrollPane.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10)); // add padding
-
-        // create the member list
+    
+        // create the member list with label
         memberListModel = new DefaultListModel<>();
         memberList = new JList<>(memberListModel);
-        JScrollPane memberScrollPane = new JScrollPane(memberList);
-        memberScrollPane.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10)); // add padding
-
+        JLabel memberListLabel = new JLabel("Members List:");
+        JPanel memberListPanel = new JPanel(new BorderLayout());
+        memberListPanel.add(memberListLabel, BorderLayout.NORTH);
+        memberListPanel.add(new JScrollPane(memberList), BorderLayout.CENTER);
+        memberListPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10)); // add padding
+    
         // create the message input area
         JPanel messagePanel = new JPanel(new BorderLayout());
         messageTextField = new JTextField();
@@ -33,20 +36,20 @@ public class Gui extends JFrame {
         sendButton = new JButton("Send");
         messagePanel.add(sendButton, BorderLayout.EAST);
         messagePanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10)); // add padding
-
+    
         // add the components to the split pane
-        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, chatScrollPane, memberScrollPane);
+        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, chatScrollPane, memberListPanel);
         splitPane.setResizeWeight(0.75);
-
+    
         // calculate the pixel value for the divider location
-
+    
         int dividerLocation = (int)(550);
         splitPane.setDividerLocation(dividerLocation);
-
+    
         // add the components to the frame
         add(splitPane, BorderLayout.CENTER);
         add(messagePanel, BorderLayout.SOUTH);
-
+    
         // set the window properties
         setSize(800, 600); // set the size of the window
         setLocationRelativeTo(null); // center the window on the screen
@@ -68,12 +71,14 @@ public class Gui extends JFrame {
         return sendButton;
     }
 
+    // get the message text from the input field
     public String getMessage() {
-        return messageTextField.getText(); // get the message text from the input field
+        return messageTextField.getText();
     }
 
+    // clear the message input field
     public void clearMessage() {
-        messageTextField.setText(""); // clear the message input field
+        messageTextField.setText("");
     }
 
 

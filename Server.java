@@ -4,16 +4,18 @@ import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.Date;
+import java.text.SimpleDateFormat;
 
 public class Server {
 
     //Hash table to store connected users
     private static Hashtable<String,String> connectedUsers = new Hashtable<String,String>();
-    private static ArrayList<String> ipAddr = new ArrayList<String>();
+    private static ArrayList<String> usernames = new ArrayList<String>();
     public static ServerSocket welcomeSocket;
     public static ServerSocket welcomeSocket2;
     private static ArrayList<String> messageQueue = new ArrayList<String>();
-    private static int currServerMessage = 0;
+    private static long lastConnectTime = 0;
     public static void main(String argv[]) throws Exception {
 
         // Create a thread pool with a fixed number of threads
@@ -44,7 +46,6 @@ public class Server {
                 System.out.println("Server listening on port 5001");
                 while (true) {
                     Socket clientSocket2 = welcomeSocket2.accept();
-                    System.out.println("Message Handler starting");
                     // Handle client connection on a separate thread
                     executorService.execute(new MessageHandler(clientSocket2));
                 }
@@ -55,7 +56,7 @@ public class Server {
         });
         welcomeSocket2Thread.start();
         
-        // Start server on port 8050 in a separate thread
+        //Listen on port 5002 for polling connections
         Thread queueProcessor = new Thread(() -> {
             try {
                 ServerSocket welcomeSocket3 = new ServerSocket(5002);
@@ -65,13 +66,13 @@ public class Server {
                     executorService.execute(new MessageBroadcaster(clientSocket3));
                 }
             } catch (IOException e) {
-                // Handle error when accepting client connections on port 8050
                 e.printStackTrace();
             }
         });
         queueProcessor.start();
     }
 
+    //Print entire message queue (For testing)
     private static void printMessageQueue() {
         System.out.println("Printing Message Queue:");
         synchronized (messageQueue) {
@@ -81,10 +82,19 @@ public class Server {
         }
     }
 
-    //Handle client connections if it is their first time connecting (Port 8080)
+    //Format date value to MM/dd hh:mm
+    private static String dateFormat(String time){
+        long timestamp = Long.parseLong(time);
+        Date date = new Date(timestamp);
+        SimpleDateFormat formatter = new SimpleDateFormat("MM/dd hh:mm a");
+        String formattedDate = formatter.format(date);
+        return formattedDate;
+    }
+
+    //Handle client connections if it is their first time connecting
     static class ClientHandler implements Runnable {
         private Socket clientSocket;
-        private boolean running = true; // boolean flag to control the loop
+        private boolean running = true;
 
         public ClientHandler(Socket socket) {
             this.clientSocket = socket;
@@ -105,17 +115,19 @@ public class Server {
                                 String errorMsg = "Error: Duplicate Username";
                                 outToClient.writeBytes(errorMsg + "\n");
                             } else {
-                                // Add the client to the map with username as key and socket as value
+                                // Add the client to the map with sessionID as key and username as value
                                 String sessionID = generateSessionId();
                                 connectedUsers.put(sessionID, username);
-                                ipAddr.add("localhost");
+                                usernames.add(username);
+                                lastConnectTime = System.currentTimeMillis();
                                 System.out.println("User has connected: " + username);
-                                outToClient.writeBytes("Successfully connected. Session id:" + sessionID + "\n");
+                                outToClient.writeBytes("Successfully connected. Session id:" + sessionID + Integer.toString(messageQueue.size()) + "\n");
                             }
                         }
                     }
                     clientSocket.close();
-                    
+                    inFromClient.close();
+                    outToClient.close();
                 } catch (IOException e) {
                     // Handle error when accepting client connections
                     e.printStackTrace();
@@ -129,13 +141,11 @@ public class Server {
 
         // Generates a unique session ID for the client
         private String generateSessionId() {
-            // Implement your session ID generation logic here
-            // Example: return a random UUID as session ID
             return java.util.UUID.randomUUID().toString();
         }
     }
 
-    //Handle messages when user sends (Port 8050)
+    //Handle messages when message is received(Port 5001)
     static class MessageHandler implements Runnable {
         private Socket clientSocket;
         private boolean running = true; // boolean flag to control the loop
@@ -147,18 +157,34 @@ public class Server {
         public void run() {
             try {
                 BufferedReader inFromClient = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-                String message = null;
+                DataOutputStream outToClient = new DataOutputStream(clientSocket.getOutputStream());
+                String message;
+                String msg;
+                String uuid;
                 while (running) {
                     // Add the received message to the messageQueue
                     message = inFromClient.readLine();
-                    synchronized (messageQueue) {
-                        messageQueue.add(message);
-                        currServerMessage += 1;
-                        stop();
+                    msg = message.substring(49, message.length());
+                    uuid = message.substring(0, 36);
+                    //Handle user disconnect
+                    if (msg.equals(".")){
+                        System.out.println("starting disconnect");
+                        outToClient.writeBytes("Disconnect successful" + "\n");
+                        //Remove username and Session ID
+                        usernames.remove(connectedUsers.get(uuid));
+                        System.out.println("User list:"+usernames.size());
+                        connectedUsers.remove(uuid);
+                    }else{
+                        synchronized (messageQueue) {
+                            messageQueue.add(message);
+                            
+                            stop();
+                        }
                     }
                 }
-                printMessageQueue();
                 clientSocket.close();
+                inFromClient.close();
+                outToClient.close();
             } catch (IOException e) {
                 // Handle error when reading from client
                 e.printStackTrace();
@@ -183,23 +209,30 @@ public class Server {
                 String message;
                 String uuid;
                 String msg;
+                String time;
                 BufferedReader inFromClient = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
                 DataOutputStream outToClient = new DataOutputStream(clientSocket.getOutputStream());
-                //Client will send current message
+                //Client sends the current message that they have
                 int currMessage = Integer.parseInt(inFromClient.readLine());
                 //Add code to parse message: First 36 char is UUID and rest is message
                 for(int i = currMessage; i < messageQueue.size(); i++){
                     message = messageQueue.get(i);
                     uuid = message.substring(0, 36);
-                    msg = message.substring(36, message.length());
-                    outToClient.writeBytes("From " + connectedUsers.get(uuid) + ": " + msg + "\n");
+                    time = dateFormat(message.substring(36, 49));
+                    msg = message.substring(49, message.length());
+                    outToClient.writeBytes(time + "   -   From " + connectedUsers.get(uuid) + ": " + msg +"\n");
                 }
+                outToClient.writeBytes("USERS"+String.join(",", usernames));
+
+                inFromClient.close();
+                outToClient.close();
                 clientSocket.close();
             //Broadcast Message
             } catch(IOException e){
-
+                e.printStackTrace();
             }
             
         }
+
     }
 }
