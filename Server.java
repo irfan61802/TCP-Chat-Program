@@ -176,6 +176,9 @@ public class Server {
                         connectedUsers.remove(uuid);
                     }else{
                         synchronized (messageQueue) {
+                            if(messageQueue.isEmpty()){
+                                messageQueue.add(message);
+                            }
                             for (int i = messageQueue.size() - 1; i >= 0; i--) {
                                 if (getMessageTimestamp(message) > getMessageTimestamp(messageQueue.get(i))) {
                                     messageQueue.add(i + 1, message);
@@ -225,12 +228,14 @@ public class Server {
                 //Client sends the current message that they have
                 int currMessage = Integer.parseInt(inFromClient.readLine());
                 //Add code to parse message: First 36 char is UUID and rest is message
-                for(int i = currMessage; i < messageQueue.size(); i++){
-                    message = messageQueue.get(i);
-                    uuid = message.substring(0, 36);
-                    time = dateFormat(message.substring(36, 49));
-                    msg = message.substring(49, message.length());
-                    outToClient.writeBytes(time + "   -   From " + connectedUsers.get(uuid) + ": " + msg +"\n");
+                synchronized(messageQueue){
+                    for(int i = currMessage; i < messageQueue.size(); i++){
+                        message = messageQueue.get(i);
+                        uuid = message.substring(0, 36);
+                        time = dateFormat(message.substring(36, 49));
+                        msg = message.substring(49, message.length());
+                        outToClient.writeBytes(time + "   -   From " + connectedUsers.get(uuid) + ": " + msg +"\n");
+                    }
                 }
                 outToClient.writeBytes("USERS"+String.join(",", usernames));
 
