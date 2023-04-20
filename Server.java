@@ -176,8 +176,12 @@ public class Server {
                         connectedUsers.remove(uuid);
                     }else{
                         synchronized (messageQueue) {
-                            messageQueue.add(message);
-                            
+                            for (int i = messageQueue.size() - 1; i >= 0; i--) {
+                                if (getMessageTimestamp(message) > getMessageTimestamp(messageQueue.get(i))) {
+                                    messageQueue.add(i + 1, message);
+                                    break;
+                                }
+                            }
                             stop();
                         }
                     }
@@ -193,6 +197,12 @@ public class Server {
 
         public void stop() {
             running = false;
+        }
+
+        private long getMessageTimestamp(String message){
+            String time = message.substring(36, 49);
+            long timeL = Long.parseLong(time);
+            return timeL;
         }
     }
 
